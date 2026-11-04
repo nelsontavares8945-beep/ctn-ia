@@ -13,12 +13,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <header className="site-nav">
           <Link className="brand" href="/" aria-label="CTN.IA início">
-            <span className="brand-mark">C</span>
-            <span>CTN<span className="brand-accent">.IA</span></span>
+            <span className="brand-mark">C</span><span>CTN<span className="brand-accent">.IA</span></span>
           </Link>
           <nav aria-label="Navegação principal">
             <Link href="/">Início</Link>
-            <Link className="nav-admin" href="/admin/login">Painel administrativo</Link>
+            <Link href="/music">Estúdio de música</Link>
+            <Link href="/history">Histórico</Link>
+            <Link className="nav-admin" href="/admin/login">Painel</Link>
           </nav>
         </header>
         {children}

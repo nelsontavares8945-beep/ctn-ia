@@ -1,51 +1,34 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { recordActivity } from '@/lib/activity';
 
-const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+export const runtime = 'nodejs';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file');
-    const question = String(formData.get('question') || 'Descreva o que aparece na imagem.');
+    const entry = formData.get('file');
+    const file = entry instanceof File ? entry : null;
+    const question = String(formData.get('question') || 'Descreva o que aparece na imagem.').slice(0, 1000);
+    if (!file || !file.type.startsWith('image/')) return NextResponse.json({ error: 'Envie um arquivo de imagem válido.' }, { status: 400 });
+    if (file.size > 8 * 1024 * 1024) return NextResponse.json({ error: 'A imagem deve ter até 8 MB.' }, { status: 413 });
+    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: 'Configure OPENAI_API_KEY para analisar imagens.' }, { status: 503 });
 
-    if (!(file instanceof Blob)) {
-      return NextResponse.json({ error: 'Arquivo obrigatório.' }, { status: 400 });
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const mime = file.type || 'image/jpeg';
-    const dataUrl = `data:${mime};base64,${buffer.toString('base64')}`;
-
-    if (!client) {
-      return NextResponse.json({
-        analysis: `Recebi a imagem com sucesso. No modo local, posso confirmar que o arquivo foi carregado e que a pergunta foi: "${question}". Para análise real com visão computacional, configure OPENAI_API_KEY.`,
-      });
-    }
-
-    const completion = await client.chat.completions.create({
+    const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const result = await client.chat.completions.create({
       model: process.env.MODEL || 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: 'Você é a CTN.IA e deve responder sobre imagens de forma útil, objetiva e em português do Brasil.',
-        },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: question },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ] as any,
-        },
+        { role: 'system', content: 'Analise a imagem e responda em português do Brasil. Seja claro e não invente detalhes que não possam ser vistos.' },
+        { role: 'user', content: [{ type: 'text', text: question }, { type: 'image_url', image_url: { url: `data:${file.type};base64,${base64}` } }] as any },
       ],
     });
-
-    const answer = completion.choices[0]?.message?.content || 'Não foi possível analisar a imagem.';
-
-    return NextResponse.json({ analysis: answer });
+    const answer = result.choices[0]?.message?.content || 'Não foi possível analisar a imagem.';
+    const response = NextResponse.json({ analysis: answer });
+    try { return await recordActivity(request, 'photo', question, answer, response); }
+    catch (error) { console.error('Photo answer created but history could not be saved:', error); return response; }
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Erro ao analisar imagem.' }, { status: 500 });
+    console.error('Photo analysis failed:', error);
+    return NextResponse.json({ error: 'Erro ao analisar imagem. Verifique a configuração da API.' }, { status: 500 });
   }
 }

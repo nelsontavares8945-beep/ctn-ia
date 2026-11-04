@@ -1,62 +1,47 @@
 # CTN.IA
 
-Aplicação web de IA com chat, voz do navegador, geração de imagens, análise de fotos, leitura de documentos e criação de propostas musicais.
+Assistente web Next.js: chat OpenAI, análise de fotos/documentos, sessão anônima com histórico PostgreSQL, painel administrativo e estúdio de prévia musical em WAV.
 
 ## Rodar localmente
 
-Requisitos: Node.js 20 (recomendado) e npm.
+Requisitos: Node.js 20+ e npm. Configure `.env.local` (copie `.env.example`) com `OPENAI_API_KEY`, `AUTH_SECRET` (segredo aleatório de 32+ caracteres) e `DATABASE_URL` PostgreSQL.
 
 ```bash
 npm install
 cp .env.example .env.local
+# edite .env.local com os valores secretos
+npx prisma db push
 npm run dev
 ```
 
-No Windows PowerShell, use `Copy-Item .env.example .env.local` no lugar de `cp`. Abra `http://localhost:3000`. As variáveis em `.env.local` são carregadas ao iniciar o servidor; reinicie `npm run dev` depois de alterá-las.
+No Windows PowerShell, copie com `Copy-Item .env.example .env.local`. Acesse `http://localhost:3000`. Depois de mudar variáveis, reinicie o servidor.
 
-### Variáveis locais
+## Banco PostgreSQL
 
-Edite `.env.local` sem compartilhar ou commitar o arquivo:
+Crie um banco PostgreSQL gerenciado (por exemplo, Neon) e configure `DATABASE_URL` com a URL SSL fornecida pelo provedor. Depois execute `npx prisma db push` para criar a tabela `Activity`. Para ambientes maiores, configure Prisma migrations e pooler do provedor em vez de usar `db push` como fluxo de evolução de schema.
 
-```env
-OPENAI_API_KEY=sua_chave_secreta
-MODEL=gpt-4o-mini
-APP_NAME=CTN.IA
-ADMIN_EMAIL=seu-email
-ADMIN_PASSWORD=uma-senha-forte
-AUTH_SECRET=um-segredo-aleatorio-com-pelo-menos-32-caracteres
-```
+O histórico é separado por cookie de sessão assinado e HTTP-only, limitado aos 100 registros recentes por sessão. Chat, documentos, fotos e letras são guardados no PostgreSQL; imagens binárias e arquivos enviados não são armazenados. A sessão de visitante não é login de usuário, sincroniza apenas no mesmo navegador/cookie e não deve ser tratada como conta pessoal. Configure retenção/backup do banco conforme sua necessidade.
 
-Crie uma chave OpenAI em [platform.openai.com/api-keys](https://platform.openai.com/api-keys). A conta precisa ter acesso à API e faturamento configurado. Nunca envie a chave em chats, não use prefixo `NEXT_PUBLIC_` e não a coloque no frontend nem no GitHub. Se uma chave já foi compartilhada, revogue-a e gere outra.
+## Áudio musical
 
-## Hospedar na Vercel
+O estúdio está em `/music`. A OpenAI cria letra, acordes e guia textual; o servidor sintetiza uma prévia instrumental simples em WAV a partir dos acordes, que pode ser ouvida e baixada. Não é vocal cantado nem produção musical de estúdio; para isso seria preciso contratar e integrar um provedor dedicado de áudio, configurando sua própria chave no servidor.
 
-O projeto está preparado para deploy como aplicação Next.js na Vercel. A publicação ainda precisa ser feita na sua conta; este repositório não contém segredos de implantação.
+## Deploy na Vercel
 
-1. Entre na [Vercel](https://vercel.com/) e importe `nelsontavares8945-beep/ctn-ia` do GitHub.
-2. Mantenha o preset Next.js e a raiz do projeto padrão. A Vercel detecta os comandos de build automaticamente.
-3. Em **Settings → Environment Variables**, crie `OPENAI_API_KEY`, `MODEL`, `APP_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `AUTH_SECRET`. Adicione-os aos ambientes desejados (Production, Preview e/ou Development). Não use os valores de exemplo como senha/segredo em produção.
-4. Gere `AUTH_SECRET` aleatório com pelo menos 32 caracteres; use senha longa e exclusiva em `ADMIN_PASSWORD`.
-5. Faça o deploy. Depois de alterar variáveis, faça um novo deploy para que entrem em vigor.
-6. Abra `/admin/login` no domínio publicado. O painel confirma o estado da configuração, sem mostrar as chaves.
+O código está preparado para build na Vercel, mas a publicação final precisa ser executada na sua conta — não posso configurar credenciais ou criar o banco por você.
 
-Para testar com variáveis de desenvolvimento da Vercel, instale a CLI e use `vercel dev`; alternativamente, mantenha `.env.local` para executar `npm run dev` localmente. HTTPS é fornecido pela Vercel no domínio publicado.
+1. Crie um PostgreSQL gerenciado e copie a URL SSL.
+2. Importe `nelsontavares8945-beep/ctn-ia` na Vercel como projeto Next.js.
+3. Em **Settings → Environment Variables**, defina `OPENAI_API_KEY`, `MODEL`, `APP_NAME`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `DATABASE_URL` para Production (e Preview/Development se necessário). Nunca use a chave que foi enviada no chat; revogue-a e crie uma nova.
+4. Gere `AUTH_SECRET` aleatório, use senha administrativa exclusiva, e não compartilhe segredos.
+5. Antes do primeiro deploy com banco vazio, execute `npx prisma db push` localmente com o `DATABASE_URL` de produção. Para fazer isso sem salvar segredos no repositório, defina a variável somente no terminal/ambiente local. Alternativamente use uma pipeline de deploy segura.
+6. Faça deploy/redeploy na Vercel. Em seguida abra `/admin/login`, `/history` e `/music` no domínio para verificar os recursos.
 
-## Painel administrativo e histórico
+O deploy não foi realizado automaticamente: requer acesso à sua conta Vercel, banco e segredos privados. A API OpenAI é cobrada conforme uso e configuração de faturamento. Monitore limites e custos.
 
-- Acesse `/admin/login` e entre com `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos no ambiente do servidor.
-- O painel `/admin` mostra status da aplicação, configuração OpenAI e instruções para configurar as variáveis.
-- O histórico atual do chat e dos recursos é salvo no armazenamento local do navegador. Ele não sincroniza entre dispositivos/usuários e pode ser apagado ao limpar os dados do navegador; não é um banco de dados em nuvem.
+## Limites e segurança
 
-## Recursos e limites
-
-- Chat, análise visual, documentos, geração de imagens e letras/arranjos usam OpenAI quando a chave está configurada.
-- Voz de entrada/saída usa APIs do navegador e depende de suporte e permissão do dispositivo.
-- Documentos aceitos: PDF, DOCX e TXT, até 10 MB. PDFs compostos apenas por imagens precisam de OCR.
-- A proposta musical é texto (letra, acordes, andamento e guia de melodia). Uma chave OpenAI não gera, por si só, uma faixa musical cantada; isso requer integração adicional com um provedor de áudio.
-- Nenhuma IA garante respostas sempre certas nem informação em tempo real sem uma integração de busca atualizada.
-- As chamadas de API podem gerar custos conforme o uso e o modelo. Defina limites de uso e monitore o faturamento.
-
-## Segurança
-
-Segredos ficam no servidor. O login administrativo usa cookie HTTP-only assinado, com sessão de oito horas. Use HTTPS em produção, credenciais fortes e nunca publique `.env.local`. O painel administrativo não substitui autenticação de usuários finais; o app principal ainda não restringe acesso a um único usuário.
+- A aplicação não garante respostas sempre certas nem navegação web atualizada.
+- PDFs escaneados precisam de OCR; arquivos aceitos nesta versão: PDF, DOCX e TXT, até 10 MB.
+- Use HTTPS, credenciais fortes e revise as regras de retenção antes de guardar informações sensíveis. Registros anônimos não substituem autenticação de usuário.
+- `OPENAI_API_KEY`, `AUTH_SECRET`, senha e URL do banco são segredos de servidor. Nunca use `NEXT_PUBLIC_` nesses valores nem publique `.env.local`.

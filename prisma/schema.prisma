@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  sessionId String
+  category  String
+  prompt    String   @db.VarChar(2000)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([sessionId, category, createdAt])
+}
