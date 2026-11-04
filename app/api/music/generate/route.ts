@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { askGemini, responseText } from '@/lib/gemini';
 import { recordActivity } from '@/lib/activity';
 
 function noteToFrequency(note: string) {
@@ -61,18 +61,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, 1500) : '';
     if (!prompt) return NextResponse.json({ error: 'Prompt obrigatório.' }, { status: 400 });
-    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: 'Configure OPENAI_API_KEY para criar a letra personalizada.' }, { status: 503 });
+    if (!process.env.GEMINI_API_KEY) return NextResponse.json({ error: 'Configure GEMINI_API_KEY para criar a letra personalizada.' }, { status: 503 });
 
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const result = await client.chat.completions.create({
-      model: process.env.MODEL || 'gpt-4o-mini',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: 'Crie uma proposta musical original em português. Retorne JSON válido com title, lyrics, melody, chords (array de notas/acordes simples como C, Am, F, G) e tempo (BPM). Não imite artistas vivos.' },
-        { role: 'user', content: prompt },
-      ],
-    });
-    const content = result.choices[0]?.message?.content;
+    const result = await askGemini([{ role: 'user', parts: [{ text: prompt }] }], 'Crie uma proposta musical original em português. Retorne JSON válido com title, lyrics, melody, chords (array de notas/acordes simples como C, Am, F, G) e tempo (BPM). Não imite artistas vivos.', true);
+    const content = responseText(result);
     if (!content) throw new Error('Resposta vazia');
     const music = JSON.parse(content);
     const chords = Array.isArray(music.chords) ? music.chords.slice(0, 4).map(String) : ['C', 'G', 'Am', 'F'];
