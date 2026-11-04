@@ -211,7 +211,6 @@ export default function CTNIAApp() {
       const answer = data.answer || 'Não foi possível gerar a resposta agora.';
 
       setMessages((prev) => [...prev, { role: 'assistant', content: answer }]);
-      speak(answer);
     } catch (error) {
       const fallback = 'Tive um problema ao consultar a IA. Tente novamente em instantes.';
       setMessages((prev) => [...prev, { role: 'assistant', content: fallback }]);
@@ -260,7 +259,6 @@ export default function CTNIAApp() {
       const answer = data.analysis || 'Nenhuma análise retornada.';
       setPhotoAnalysis(answer);
       setPhotoHistory((prev) => [{ question: photoQuestion || 'Análise de foto', answer, date: new Date().toLocaleString('pt-BR') }, ...prev].slice(0, 6));
-      speak(answer);
     } catch (error) {
       setPhotoAnalysis('Não foi possível analisar a imagem agora.');
     } finally {
@@ -301,7 +299,6 @@ export default function CTNIAApp() {
       setDocumentAnswer(answer);
       setDocumentText(data.textPreview || '');
       setDocumentHistory((prev) => [{ question: file.name, answer, date: new Date().toLocaleString('pt-BR') }, ...prev].slice(0, 6));
-      speak(answer);
     } catch (error) {
       setDocumentAnswer('Não foi possível ler o documento agora.');
     } finally {
