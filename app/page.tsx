@@ -12,6 +12,11 @@ import {
   Sparkles,
   Upload,
   Volume2,
+  Plus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ArrowUp,
+  WandSparkles,
 } from 'lucide-react';
 
 const defaultMessages: Message[] = [
@@ -59,6 +64,8 @@ const STORAGE_KEYS = {
 export default function CTNIAApp() {
   const [messages, setMessages] = useState<Message[]>(defaultMessages);
   const [chatInput, setChatInput] = useState('');
+  const [activeTool, setActiveTool] = useState<'chat' | 'voice' | 'image' | 'photo' | 'document' | 'music'>('chat');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageResult, setImageResult] = useState<string | null>(null);
@@ -322,230 +329,43 @@ export default function CTNIAApp() {
     photoCount: photoHistory.length,
   };
 
+  const toolNames = { chat: 'Nova conversa', voice: 'Conversa por voz', image: 'Criar imagem', photo: 'Analisar foto', document: 'Ler documento', music: 'Estúdio musical' };
+
   return (
-    <main className="container">
-      <div className="hero">
-        <div>
-          <span className="tag">CTN.IA</span>
-          <h1>Seu sistema de IA completo</h1>
-          <p>
-            Chat, voz, imagens, fotos, documentos, letras e música em uma interface moderna.
-          </p>
-        </div>
-        <div className="hero-badges">
-          <span>💬 Chat</span>
-          <span>🎙️ Voz</span>
-          <span>🖼️ Imagens</span>
-          <span>📄 Documentos</span>
-          <span>🎵 Música</span>
-        </div>
-      </div>
-
-      <section className="stats-row">
-        <div className="stat-box"><strong>{totalStats.chatCount}</strong><span>mensagens</span></div>
-        <div className="stat-box"><strong>{totalStats.imageCount}</strong><span>imagens</span></div>
-        <div className="stat-box"><strong>{totalStats.musicCount}</strong><span>músicas</span></div>
-        <div className="stat-box"><strong>{totalStats.docCount}</strong><span>documentos</span></div>
-        <div className="stat-box"><strong>{totalStats.photoCount}</strong><span>fotos</span></div>
-      </section>
-
-      <section className="grid">
-        <div className="card wide">
-          <div className="card-header">
-            <Sparkles />
-            <h2>Chat da CTN.IA</h2>
+    <main className={`launcher-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+      <aside className="launcher-sidebar">
+        <div className="launcher-brand-row"><a className="launcher-brand" href="/"><span className="launcher-logo">C</span><span>CTN<span>.IA</span></span></a><button className="sidebar-toggle" aria-label="Recolher menu" onClick={() => setSidebarOpen(false)}><PanelLeftClose /></button></div>
+        {!sidebarOpen && <button className="sidebar-toggle reopen" aria-label="Abrir menu" onClick={() => setSidebarOpen(true)}><PanelLeftOpen /></button>}
+        <button className="new-chat" onClick={() => { setActiveTool('chat'); setMessages(defaultMessages); setChatInput(''); }}><Plus size={18}/> Nova conversa</button>
+        <div className="sidebar-section-label">FERRAMENTAS</div>
+        <nav className="tool-nav">
+          <button className={activeTool === 'chat' ? 'selected' : ''} onClick={() => setActiveTool('chat')}><Sparkles/> <span>Assistente</span></button>
+          <button className={activeTool === 'voice' ? 'selected' : ''} onClick={() => setActiveTool('voice')}><Volume2/> <span>Conversa por voz</span></button>
+          <button className={activeTool === 'image' ? 'selected' : ''} onClick={() => setActiveTool('image')}><ImagePlus/> <span>Criar imagem</span></button>
+          <button className={activeTool === 'photo' ? 'selected' : ''} onClick={() => setActiveTool('photo')}><Camera/> <span>Analisar foto</span></button>
+          <button className={activeTool === 'document' ? 'selected' : ''} onClick={() => setActiveTool('document')}><FileText/> <span>PDF e documentos</span></button>
+          <button className={activeTool === 'music' ? 'selected' : ''} onClick={() => setActiveTool('music')}><Music4/> <span>Estúdio musical</span></button>
+        </nav>
+        <div className="sidebar-history"><div className="sidebar-section-label">RECENTES</div>{messages.filter(m => m.role === 'user').slice(-6).reverse().map((m, i) => <button key={`${m.content}-${i}`} onClick={() => setActiveTool('chat')} title={m.content}><span className="history-dot"/>{m.content}</button>)}</div>
+        <div className="sidebar-bottom"><span className="online-dot"/> Gemini gratuito <a href="/admin/login">Painel</a></div>
+      </aside>
+      <section className="launcher-main">
+        <header className="launcher-topbar"><div className="topbar-title">{toolNames[activeTool]} <span className="model-pill">Gemini</span></div><button className="topbar-avatar" title="CTN.IA">C</button></header>
+        {activeTool === 'chat' ? (
+          <div className={`chat-stage ${messages.length > 1 ? 'has-messages' : ''}`}>
+            {messages.length <= 1 ? <div className="welcome-block"><div className="welcome-spark"><Sparkles size={24}/></div><h1>Olá, Babi. <span>O que vamos criar?</span></h1><p>Converse comigo, envie um documento ou escolha uma ferramenta para começar.</p></div> : <div className="conversation" aria-live="polite">{messages.slice(1).map((message, index) => <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}><div className="message-avatar">{message.role === 'assistant' ? 'C' : 'B'}</div><div className="message-copy">{message.content}</div></div>)}{isBusy && <div className="chat-message assistant"><div className="message-avatar">C</div><div className="typing-dots"><i/><i/><i/></div></div>}</div>}
+            {messages.length <= 1 && <div className="suggestion-grid"><button onClick={() => setChatInput('Me ajude a organizar minhas ideias para hoje')}><span>✦</span><strong>Organize minhas ideias</strong><small>Transforme pensamentos em um plano</small></button><button onClick={() => setChatInput('Explique um assunto difícil de um jeito simples')}><span>⌘</span><strong>Explique algo</strong><small>Aprenda passo a passo, sem complicação</small></button><button onClick={() => { setActiveTool('document'); }}><FileText/><strong>Leia um documento</strong><small>Envie PDF, Word ou texto</small></button><button onClick={() => setActiveTool('music')}><Music4/><strong>Crie uma música</strong><small>Faça uma letra do seu jeito</small></button></div>}
+            <div className="composer-wrap"><div className="composer"><textarea value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Escreva sua mensagem para a CTN.IA..." rows={1} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}/><div className="composer-actions"><div className="composer-tools"><button title="Enviar foto" onClick={() => setActiveTool('photo')}><Camera/></button><button title="Ler documento" onClick={() => setActiveTool('document')}><FileText/></button><button title="Falar" onClick={() => isListening ? stopVoiceInput() : startVoiceInput()} className={isListening ? 'listening' : ''}><Mic/></button></div><button className="send-button" onClick={sendChat} disabled={isBusy || !chatInput.trim()} aria-label="Enviar mensagem"><ArrowUp/></button></div></div><div className="composer-note">A CTN.IA pode cometer erros. Confira informações importantes.</div></div>
           </div>
-
-          <div className="messages">
-            {messages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`message ${message.role}`}>
-                {message.content}
-              </div>
-            ))}
+        ) : (
+          <div className="tool-stage"><button className="back-chat" onClick={() => setActiveTool('chat')}>← Voltar ao chat</button><div className="tool-heading"><span className="tool-heading-icon">{activeTool === 'voice' ? <Volume2/> : activeTool === 'image' ? <ImagePlus/> : activeTool === 'photo' ? <Camera/> : activeTool === 'document' ? <FileText/> : <Music4/>}</span><h1>{toolNames[activeTool]}</h1><p>{activeTool === 'voice' ? 'Fale sua mensagem; eu transcrevo e respondo em voz alta.' : activeTool === 'image' ? 'Descreva a imagem que você quer criar.' : activeTool === 'photo' ? 'Envie uma foto e pergunte o que deseja saber.' : activeTool === 'document' ? 'Envie um PDF, Word ou texto para eu resumir e analisar.' : 'Descreva o estilo e o tema da música que vamos compor.'}</p></div>
+            {activeTool === 'voice' && <div className="tool-card"><button className={`voice-orb ${isListening ? 'listening' : ''}`} onClick={() => isListening ? stopVoiceInput() : startVoiceInput()}>{isListening ? <MicOff/> : <Mic/>}</button><strong>{isListening ? 'Estou ouvindo…' : 'Toque para falar'}</strong><span>{chatInput || 'Sua fala aparecerá aqui para você enviar no chat.'}</span><button className="secondary-button" onClick={() => speak('CTN.IA pronta para responder.')}>Testar áudio</button></div>}
+            {activeTool === 'image' && <div className="tool-card"><textarea value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} placeholder="Ex.: uma paisagem surreal ao pôr do sol, em tons violeta..."/><button className="primary-button" onClick={generateImage} disabled={isBusy}><WandSparkles/> {isBusy ? 'Criando…' : 'Criar imagem'}</button>{imageResult && <div className="image-preview"><img src={imageResult} alt="Imagem criada"/></div>}</div>}
+            {activeTool === 'photo' && <div className="tool-card"><textarea value={photoQuestion} onChange={e => setPhotoQuestion(e.target.value)} placeholder="O que você quer saber sobre a foto?"/><label className="upload-button"><Upload/> Escolher foto<input type="file" accept="image/*" onChange={handlePhotoUpload}/></label>{photoPreview && <div className="image-preview small"><img src={photoPreview} alt="Foto enviada"/></div>}{photoAnalysis && <div className="result-box">{photoAnalysis}</div>}</div>}
+            {activeTool === 'document' && <div className="tool-card"><label className="dropzone"><Upload/><strong>Escolha seu documento</strong><span>PDF, DOC, DOCX ou TXT</span><input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload}/></label>{documentAnswer && <div className="result-box">{documentAnswer}</div>}{documentText && <pre className="document-preview">{documentText.slice(0, 1000)}</pre>}</div>}
+            {activeTool === 'music' && <div className="tool-card"><textarea value={musicPrompt} onChange={e => setMusicPrompt(e.target.value)} placeholder="Ex.: pop animado sobre recomeçar, com refrão marcante..."/><button className="primary-button" onClick={generateMusic} disabled={isBusy}><Music4/> {isBusy ? 'Compondo…' : 'Criar música'}</button>{musicResult && <div className="music-box"><div><strong>Tempo:</strong> {musicResult.tempo || 92} BPM</div><div><strong>Acordes:</strong> {(musicResult.chords || []).join(' - ')}</div><div><strong>Melodia:</strong> {musicResult.melody || 'C - G - Am - F'}</div><pre>{musicResult.lyrics || 'Sem letra gerada.'}</pre></div>}</div>}
           </div>
-
-          <div className="input-row">
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Pergunte qualquer coisa para a CTN.IA..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') sendChat();
-              }}
-            />
-            <button className="icon-button" onClick={startVoiceInput} title="Ativar voz">
-              {isListening ? <MicOff /> : <Mic />}
-            </button>
-            <button className="primary-button" onClick={sendChat} disabled={isBusy}>
-              <Send />
-              Enviar
-            </button>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <Volume2 />
-            <h2>Voz</h2>
-          </div>
-
-          <p className="muted">Use o microfone para falar e a IA responde em voz alta.</p>
-          <button className="secondary-button" onClick={() => (isListening ? stopVoiceInput() : startVoiceInput())}>
-            {isListening ? <MicOff /> : <Mic />}
-            {isListening ? 'Parar voz' : 'Falar com a IA'}
-          </button>
-          <button className="secondary-button" onClick={() => speak('CTN.IA pronta para responder.')}>Testar áudio</button>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <ImagePlus />
-            <h2>Gerar imagem</h2>
-          </div>
-          <textarea
-            value={imagePrompt}
-            onChange={(e) => setImagePrompt(e.target.value)}
-            placeholder="Descreva a imagem que você deseja criar..."
-          />
-          <button className="primary-button" onClick={generateImage} disabled={isBusy}>
-            <Sparkles />
-            Criar imagem
-          </button>
-          {imageResult && (
-            <div className="image-preview">
-              <img src={imageResult} alt="Imagem gerada pela CTN.IA" />
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <Camera />
-            <h2>Fotos e análise</h2>
-          </div>
-          <textarea
-            value={photoQuestion}
-            onChange={(e) => setPhotoQuestion(e.target.value)}
-            placeholder="Pergunte o que está na foto..."
-          />
-          <label className="upload-button">
-            <Upload />
-            Enviar foto
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} />
-          </label>
-          {photoPreview && (
-            <div className="image-preview small">
-              <img src={photoPreview} alt="Foto enviada" />
-            </div>
-          )}
-          {photoAnalysis && <div className="result-box">{photoAnalysis}</div>}
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <FileText />
-            <h2>PDF e Word</h2>
-          </div>
-          <label className="upload-button">
-            <Upload />
-            Ler documento
-            <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
-          </label>
-          {documentAnswer && <div className="result-box">{documentAnswer}</div>}
-          {documentText && <pre className="document-preview">{documentText.slice(0, 1000)}</pre>}
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <Music4 />
-            <h2>Letras e música</h2>
-          </div>
-          <textarea
-            value={musicPrompt}
-            onChange={(e) => setMusicPrompt(e.target.value)}
-            placeholder="Ex.: uma música pop emocional sobre superação e luz..."
-          />
-          <button className="primary-button" onClick={generateMusic} disabled={isBusy}>
-            <Music4 />
-            Criar música
-          </button>
-
-          {musicResult && (
-            <div className="music-box">
-              <div>
-                <strong>Tempo:</strong> {musicResult.tempo || 92} BPM
-              </div>
-              <div>
-                <strong>Acordes:</strong> {(musicResult.chords || []).join(' - ')}
-              </div>
-              <div>
-                <strong>Melodia:</strong> {musicResult.melody || 'C - G - Am - F'}
-              </div>
-              <pre>{musicResult.lyrics || 'Sem letra gerada.'}</pre>
-            </div>
-          )}
-        </div>
-
-        <div className="card wide history-panel">
-          <div className="card-header">
-            <Sparkles />
-            <h2>Histórico da sessão</h2>
-          </div>
-
-          <div className="history-grid">
-            <div>
-              <h3>Imagens</h3>
-              <div className="mini-list">
-                {imageHistory.length ? imageHistory.map((item, index) => (
-                  <div key={`${item.src}-${index}`} className="mini-item">
-                    <img src={item.src} alt={item.prompt} />
-                    <small>{item.prompt}</small>
-                    <span>{item.date}</span>
-                  </div>
-                )) : <p className="muted">Nenhuma imagem gerada ainda.</p>}
-              </div>
-            </div>
-
-            <div>
-              <h3>Músicas</h3>
-              <div className="mini-list text-list">
-                {musicHistory.length ? musicHistory.map((item, index) => (
-                  <div key={`${item.prompt}-${index}`} className="mini-item-text">
-                    <strong>{item.melody}</strong>
-                    <span>{item.date}</span>
-                    <small>{item.prompt}</small>
-                  </div>
-                )) : <p className="muted">Nenhuma música criada.</p>}
-              </div>
-            </div>
-
-            <div>
-              <h3>Documentos</h3>
-              <div className="mini-list text-list">
-                {documentHistory.length ? documentHistory.map((item, index) => (
-                  <div key={`${item.question}-${index}`} className="mini-item-text">
-                    <strong>{item.question}</strong>
-                    <span>{item.date}</span>
-                    <small>{item.answer.slice(0, 120)}</small>
-                  </div>
-                )) : <p className="muted">Nenhum documento lido.</p>}
-              </div>
-            </div>
-
-            <div>
-              <h3>Fotos</h3>
-              <div className="mini-list text-list">
-                {photoHistory.length ? photoHistory.map((item, index) => (
-                  <div key={`${item.question}-${index}`} className="mini-item-text">
-                    <strong>{item.question}</strong>
-                    <span>{item.date}</span>
-                    <small>{item.answer.slice(0, 120)}</small>
-                  </div>
-                )) : <p className="muted">Nenhuma análise de foto ainda.</p>}
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </section>
     </main>
   );
