@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Camera,
   FileText,
@@ -27,6 +27,35 @@ type Message = {
   content: string;
 };
 
+type HistoryItem = {
+  question: string;
+  answer: string;
+  date: string;
+};
+
+type MusicHistoryItem = {
+  prompt: string;
+  lyrics: string;
+  melody: string;
+  chords: string[];
+  tempo: number;
+  date: string;
+};
+
+type ImageHistoryItem = {
+  src: string;
+  prompt: string;
+  date: string;
+};
+
+const STORAGE_KEYS = {
+  chat: 'ctnia.chat.history',
+  images: 'ctnia.image.gallery',
+  music: 'ctnia.music.history',
+  documents: 'ctnia.documents.history',
+  photos: 'ctnia.photo.history',
+};
+
 export default function CTNIAApp() {
   const [messages, setMessages] = useState<Message[]>(defaultMessages);
   const [chatInput, setChatInput] = useState('');
@@ -41,7 +70,61 @@ export default function CTNIAApp() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoAnalysis, setPhotoAnalysis] = useState<string>('');
   const [isBusy, setIsBusy] = useState(false);
+  const [documentHistory, setDocumentHistory] = useState<HistoryItem[]>([]);
+  const [musicHistory, setMusicHistory] = useState<MusicHistoryItem[]>([]);
+  const [imageHistory, setImageHistory] = useState<ImageHistoryItem[]>([]);
+  const [photoHistory, setPhotoHistory] = useState<HistoryItem[]>([]);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const storedMessages = JSON.parse(localStorage.getItem(STORAGE_KEYS.chat) || 'null');
+      if (Array.isArray(storedMessages) && storedMessages.length) {
+        setMessages(storedMessages);
+      }
+
+      const storedImages = JSON.parse(localStorage.getItem(STORAGE_KEYS.images) || 'null');
+      if (Array.isArray(storedImages)) setImageHistory(storedImages);
+
+      const storedMusic = JSON.parse(localStorage.getItem(STORAGE_KEYS.music) || 'null');
+      if (Array.isArray(storedMusic)) setMusicHistory(storedMusic);
+
+      const storedDocuments = JSON.parse(localStorage.getItem(STORAGE_KEYS.documents) || 'null');
+      if (Array.isArray(storedDocuments)) setDocumentHistory(storedDocuments);
+
+      const storedPhotos = JSON.parse(localStorage.getItem(STORAGE_KEYS.photos) || 'null');
+      if (Array.isArray(storedPhotos)) setPhotoHistory(storedPhotos);
+    } catch {
+      // Ignora erros de leitura local em navegador.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.images, JSON.stringify(imageHistory));
+  }, [imageHistory]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.music, JSON.stringify(musicHistory));
+  }, [musicHistory]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.documents, JSON.stringify(documentHistory));
+  }, [documentHistory]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEYS.photos, JSON.stringify(photoHistory));
+  }, [photoHistory]);
 
   const speak = (text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -120,7 +203,11 @@ export default function CTNIAApp() {
       });
 
       const data = await response.json();
-      setImageResult(data.image || null);
+      const nextImage = data.image || null;
+      setImageResult(nextImage);
+      if (nextImage) {
+        setImageHistory((prev) => [{ src: nextImage, prompt: imagePrompt, date: new Date().toLocaleString('pt-BR') }, ...prev].slice(0, 8));
+      }
     } catch (error) {
       setImageResult(null);
     } finally {
@@ -141,8 +228,10 @@ export default function CTNIAApp() {
       });
 
       const data = await response.json();
-      setPhotoAnalysis(data.analysis || 'Nenhuma análise retornada.');
-      speak(data.analysis || 'Imagem recebida pela CTN.IA.');
+      const answer = data.analysis || 'Nenhuma análise retornada.';
+      setPhotoAnalysis(answer);
+      setPhotoHistory((prev) => [{ question: photoQuestion || 'Análise de foto', answer, date: new Date().toLocaleString('pt-BR') }, ...prev].slice(0, 6));
+      speak(answer);
     } catch (error) {
       setPhotoAnalysis('Não foi possível analisar a imagem agora.');
     } finally {
@@ -179,9 +268,11 @@ export default function CTNIAApp() {
       });
 
       const data = await response.json();
-      setDocumentAnswer(data.answer || 'Documento processado.');
+      const answer = data.answer || 'Documento processado.';
+      setDocumentAnswer(answer);
       setDocumentText(data.textPreview || '');
-      speak(data.answer || 'Documento processado pela CTN.IA.');
+      setDocumentHistory((prev) => [{ question: file.name, answer, date: new Date().toLocaleString('pt-BR') }, ...prev].slice(0, 6));
+      speak(answer);
     } catch (error) {
       setDocumentAnswer('Não foi possível ler o documento agora.');
     } finally {
@@ -201,7 +292,16 @@ export default function CTNIAApp() {
       });
 
       const data = await response.json();
-      setMusicResult(data);
+      const nextMusic = {
+        prompt: musicPrompt,
+        lyrics: data.lyrics || 'Sem letra gerada.',
+        melody: data.melody || 'C - G - Am - F',
+        chords: data.chords || ['C', 'G', 'Am', 'F'],
+        tempo: data.tempo || 92,
+        date: new Date().toLocaleString('pt-BR'),
+      };
+      setMusicResult(nextMusic);
+      setMusicHistory((prev) => [nextMusic, ...prev].slice(0, 6));
     } catch (error) {
       setMusicResult({
         lyrics: 'Não foi possível gerar a música agora.',
@@ -212,6 +312,14 @@ export default function CTNIAApp() {
     } finally {
       setIsBusy(false);
     }
+  };
+
+  const totalStats = {
+    chatCount: messages.length,
+    imageCount: imageHistory.length,
+    musicCount: musicHistory.length,
+    docCount: documentHistory.length,
+    photoCount: photoHistory.length,
   };
 
   return (
@@ -232,6 +340,14 @@ export default function CTNIAApp() {
           <span>🎵 Música</span>
         </div>
       </div>
+
+      <section className="stats-row">
+        <div className="stat-box"><strong>{totalStats.chatCount}</strong><span>mensagens</span></div>
+        <div className="stat-box"><strong>{totalStats.imageCount}</strong><span>imagens</span></div>
+        <div className="stat-box"><strong>{totalStats.musicCount}</strong><span>músicas</span></div>
+        <div className="stat-box"><strong>{totalStats.docCount}</strong><span>documentos</span></div>
+        <div className="stat-box"><strong>{totalStats.photoCount}</strong><span>fotos</span></div>
+      </section>
 
       <section className="grid">
         <div className="card wide">
@@ -333,7 +449,7 @@ export default function CTNIAApp() {
           <label className="upload-button">
             <Upload />
             Ler documento
-            <input type="file" accept=".pdf,.doc,.docx" onChange={handleDocumentUpload} />
+            <input type="file" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
           </label>
           {documentAnswer && <div className="result-box">{documentAnswer}</div>}
           {documentText && <pre className="document-preview">{documentText.slice(0, 1000)}</pre>}
@@ -368,6 +484,67 @@ export default function CTNIAApp() {
               <pre>{musicResult.lyrics || 'Sem letra gerada.'}</pre>
             </div>
           )}
+        </div>
+
+        <div className="card wide history-panel">
+          <div className="card-header">
+            <Sparkles />
+            <h2>Histórico da sessão</h2>
+          </div>
+
+          <div className="history-grid">
+            <div>
+              <h3>Imagens</h3>
+              <div className="mini-list">
+                {imageHistory.length ? imageHistory.map((item, index) => (
+                  <div key={`${item.src}-${index}`} className="mini-item">
+                    <img src={item.src} alt={item.prompt} />
+                    <small>{item.prompt}</small>
+                    <span>{item.date}</span>
+                  </div>
+                )) : <p className="muted">Nenhuma imagem gerada ainda.</p>}
+              </div>
+            </div>
+
+            <div>
+              <h3>Músicas</h3>
+              <div className="mini-list text-list">
+                {musicHistory.length ? musicHistory.map((item, index) => (
+                  <div key={`${item.prompt}-${index}`} className="mini-item-text">
+                    <strong>{item.melody}</strong>
+                    <span>{item.date}</span>
+                    <small>{item.prompt}</small>
+                  </div>
+                )) : <p className="muted">Nenhuma música criada.</p>}
+              </div>
+            </div>
+
+            <div>
+              <h3>Documentos</h3>
+              <div className="mini-list text-list">
+                {documentHistory.length ? documentHistory.map((item, index) => (
+                  <div key={`${item.question}-${index}`} className="mini-item-text">
+                    <strong>{item.question}</strong>
+                    <span>{item.date}</span>
+                    <small>{item.answer.slice(0, 120)}</small>
+                  </div>
+                )) : <p className="muted">Nenhum documento lido.</p>}
+              </div>
+            </div>
+
+            <div>
+              <h3>Fotos</h3>
+              <div className="mini-list text-list">
+                {photoHistory.length ? photoHistory.map((item, index) => (
+                  <div key={`${item.question}-${index}`} className="mini-item-text">
+                    <strong>{item.question}</strong>
+                    <span>{item.date}</span>
+                    <small>{item.answer.slice(0, 120)}</small>
+                  </div>
+                )) : <p className="muted">Nenhuma análise de foto ainda.</p>}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
