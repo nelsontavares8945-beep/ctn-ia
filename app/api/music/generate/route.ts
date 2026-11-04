@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { askGemini, responseText } from '@/lib/gemini';
+import { generateTextWithFallback } from '@/lib/ai-fallback';
 import { recordActivity } from '@/lib/activity';
 
 function noteToFrequency(note: string) {
@@ -61,14 +61,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, 1500) : '';
     if (!prompt) return NextResponse.json({ error: 'Prompt obrigatório.' }, { status: 400 });
-    if (!process.env.GEMINI_API_KEY) return NextResponse.json({ error: 'Configure GEMINI_API_KEY para criar a letra personalizada.' }, { status: 503 });
+    if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY && !(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID)) return NextResponse.json({ error: 'Configure Groq, Gemini ou Cloudflare Workers AI para criar a letra personalizada.' }, { status: 503 });
 
-    const result = await askGemini([{ role: 'user', parts: [{ text: prompt }] }], 'Crie uma proposta musical original em português. Retorne JSON válido com title, lyrics, melody, chords (array de notas/acordes simples como C, Am, F, G) e tempo (BPM). Não imite artistas vivos.', true);
-    const content = responseText(result);
+    const content = await generateTextWithFallback(prompt, 'Crie uma proposta musical original em português. Retorne JSON válido com title, lyrics, melody, chords (array de notas/acordes simples como C, Am, F, G) e tempo (BPM). Não imite artistas vivos.', true);
     if (!content) throw new Error('Resposta vazia');
-    const music = JSON.parse(content);
-    const chords = Array.isArray(music.chords) ? music.chords.slice(0, 4).map(String) : ['C', 'G', 'Am', 'F'];
-    const tempo = Number(music.tempo) || 100;
+    const jsonText = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const music = JSON.parse(jsonText);
+    const rawChords = Array.isArray(music.chords) ? music.chords : typeof music.chords === 'string' ? music.chords.split(/[\s,|–—-]+/).filter(Boolean) : [];
+    const chords = rawChords.slice(0, 4).map(String);
+    while (chords.length < 4) chords.push(['C', 'G', 'Am', 'F'][chords.length]);
+    const tempoMatch = String(music.tempo ?? '').match(/\d{2,3}/);
+    const tempo = Number(tempoMatch?.[0]) || 100;
     const audioBase64 = makePreviewWav(chords, tempo);
     const audioDataUrl = `data:audio/wav;base64,${audioBase64}`;
     const response = NextResponse.json({
