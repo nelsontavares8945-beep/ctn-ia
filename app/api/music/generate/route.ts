@@ -1,65 +1,31 @@
 import { NextResponse } from 'next/server';
-
-function buildLyrics(prompt: string) {
-  const basePrompt = prompt.toLowerCase();
-  const mood = basePrompt.includes('triste') ? 'triste' : basePrompt.includes('feliz') ? 'alegre' : 'inspirador';
-
-  const lyrics = [
-    'No silêncio da noite eu aprendi a voar',
-    'Cada passo foi uma chance de renascer',
-    'Com coragem no peito e fé no coração',
-    `Eu sigo em frente, mesmo quando o mundo diz que não`,
-    'A luz sempre vem quando a alma escolhe lutar',
-    'E a vida me mostrou que o sonho também canta',
-    'Hoje eu sou mais forte, com a voz do céu',
-    'E a esperança me leva para além do medo',
-  ];
-
-  if (mood === 'alegre') {
-    return [
-      'Hoje a vida me sorriu em plena luz',
-      'Eu danço com o vento e sigo em busca do sol',
-      'Cada batida no peito me chama para viver',
-      'E o sonho me guia até a estrada da alegria',
-      'Eu canto sem medo, porque o amor me move',
-      'A música me leva para um lugar de paz',
-    ].join('\n');
-  }
-
-  if (mood === 'triste') {
-    return [
-      'As nuvens caíram e o céu ficou sem cor',
-      'Mas ainda há dentro de mim uma chama a resistir',
-      'Eu aprendi que o choro também pode ser alegria',
-      'E que o amanhã nasce depois da noite',
-      'Mesmo ferida, eu sigo procurando a paz',
-    ].join('\n');
-  }
-
-  return lyrics.join('\n');
-}
+import OpenAI from 'openai';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
+    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, 1500) : '';
+    if (!prompt) return NextResponse.json({ error: 'Prompt obrigatório.' }, { status: 400 });
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt obrigatório.' }, { status: 400 });
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'Configure OPENAI_API_KEY para gerar letras e arranjos personalizados.' }, { status: 503 });
     }
 
-    const melody = 'C - G - Am - F';
-    const chords = ['C', 'G', 'Am', 'F'];
-    const lyrics = buildLyrics(prompt);
-
-    return NextResponse.json({
-      lyrics,
-      melody,
-      chords,
-      tempo: 92,
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const result = await client.chat.completions.create({
+      model: process.env.MODEL || 'gpt-4o-mini',
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: 'Crie uma proposta musical original em português. Retorne JSON válido com as chaves title, lyrics, melody, chords (array de acordes) e tempo (BPM). A melodia deve ser descrita em notas/ritmo, não em áudio. Não imite artistas vivos.' },
+        { role: 'user', content: prompt },
+      ],
     });
+    const content = result.choices[0]?.message?.content;
+    if (!content) throw new Error('Resposta vazia');
+    const music = JSON.parse(content);
+    return NextResponse.json({ ...music, audioAvailable: false, note: 'Esta integração cria letra e guia musical em texto. Para renderizar áudio cantado é necessário conectar um provedor de geração musical separado.' });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Erro ao gerar música.' }, { status: 500 });
+    console.error('Erro ao criar proposta musical:', error);
+    return NextResponse.json({ error: 'Não foi possível criar a proposta musical. Confira a chave e o acesso ao modelo.' }, { status: 500 });
   }
 }

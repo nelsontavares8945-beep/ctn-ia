@@ -1,75 +1,36 @@
 # CTN.IA
 
-Sistema de inteligência artificial com:
-- Chat conversacional
-- Voz de entrada/saída
-- Criação de imagens
-- Análise de fotos
-- Leitura de PDF e Word
-- Geração de letras e melodias
+Aplicação web de IA com chat, voz do navegador, geração de imagens, análise de fotos, leitura de documentos e criação de propostas musicais.
 
-## Requisitos
-- Node.js 18+
-- npm
-- Chave de API OpenAI opcional para ativar IA real
+## Rodar localmente
 
-## Instalação
+Requisitos: Node.js 18+ e npm.
 
 ```bash
 npm install
 cp .env.example .env.local
-```
-
-## Variáveis de ambiente
-
-Edite o arquivo `.env.local` com suas chaves:
-
-```env
-OPENAI_API_KEY=
-MODEL=gpt-4o-mini
-APP_NAME=CTN.IA
-```
-
-Se você não definir a chave da OpenAI, o projeto usa um modo local com respostas simuladas, mas ainda mantém a interface funcionando.
-
-## Rodar localmente
-
-```bash
 npm run dev
 ```
 
-Acesse: http://localhost:3000
+Acesse `http://localhost:3000`. Edite `.env.local` e reinicie o servidor para aplicar mudanças nas variáveis.
 
-## Funcionalidades
+## Configurar a chave OpenAI
 
-### 1. Chat AI
-- Respostas por IA em texto
-- Suporte a conversa normal
-- Possível busca em web com API de terceiros (opcional)
+1. Crie uma chave em [platform.openai.com/api-keys](https://platform.openai.com/api-keys). A conta precisa ter acesso à API e faturamento configurado.
+2. Abra `.env.local` na raiz do projeto e preencha `OPENAI_API_KEY=sua_chave_secreta`.
+3. Nunca compartilhe essa chave, não a coloque em arquivos `NEXT_PUBLIC_*`, no código do frontend ou em commits. `.env.local` está ignorado pelo Git.
+4. Para hospedagem, configure `OPENAI_API_KEY` na área de variáveis/segredos do provedor de hospedagem e faça um novo deploy.
 
-### 2. Voz
-- Entrada por microfone via Web Speech API
-- Saída em voz com SpeechSynthesis
+O painel em `/admin` informa se o servidor recebeu a chave sem revelar seu valor. Para entrar, configure `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `AUTH_SECRET` no ambiente. Gere um segredo aleatório com pelo menos 32 caracteres para `AUTH_SECRET` e troque a senha de exemplo antes de publicar.
 
-### 3. Criação de imagens
-- Prompt para gerar imagens
-- Funciona com OpenAI Images API quando configurado
-- Sem chave, gera uma imagem local em SVG como fallback
+## Recursos e limites
 
-### 4. Análise de fotos
-- Upload de imagem
-- Perguntas sobre a imagem
-- Uso de visão com OpenAI quando disponível
+- Chat, análise visual, documentos, geração de imagens e letras/arranjos usam a OpenAI quando a chave está configurada.
+- Voz de entrada/saída usa APIs do navegador e depende de suporte e permissão do dispositivo.
+- Documentos aceitos: PDF, DOCX e TXT, até 10 MB. PDFs compostos apenas por imagens precisam de OCR.
+- A proposta musical é texto (letra, acordes, andamento e guia de melodia). Uma chave OpenAI não gera, por si só, uma faixa musical cantada; isso requer integração adicional com um provedor de áudio.
+- Nenhuma IA garante respostas sempre certas ou informação em tempo real sem uma integração de busca atualizada.
 
-### 5. PDF e Word
-- Upload de `.pdf`, `.docx`, `.doc`
-- Leitura do texto do arquivo
-- Resposta baseada no conteúdo
+## Segurança
 
-### 6. Música
-- Geração de letra
-- Criação de estrutura melódica e acordes
-- Seu banco musical pode ser conectado depois com APIs especializadas
-
-## Observação importante
-Este projeto foi montado como MVP funcional com interface moderna e integração pronta para IA real. As respostas sempre corretas não são garantidas por qualquer IA; o que é possível é implementar com APIs confiáveis e boas regras de contexto.
+Segredos ficam no servidor. O login administrativo usa cookie HTTP-only assinado, com sessão de oito horas. Use HTTPS em produção, credenciais fortes e nunca publique o arquivo `.env.local`.
