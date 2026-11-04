@@ -18,8 +18,8 @@ export async function GET() {
 
   return NextResponse.json({
     appName: process.env.APP_NAME || 'CTN.IA',
-    openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
-    model: process.env.MODEL || 'gpt-4o-mini',
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+    model: process.env.MODEL || 'gemini-3.5-flash',
     adminConfigured: Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && process.env.AUTH_SECRET),
     databaseConfigured,
     activityCount,
