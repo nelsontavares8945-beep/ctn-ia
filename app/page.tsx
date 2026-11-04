@@ -13,10 +13,11 @@ import {
   Upload,
   Volume2,
   Plus,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ArrowUp,
   WandSparkles,
+  ChevronLeft,
+  MoreHorizontal,
+  Copy,
+  ThumbsUp,
 } from 'lucide-react';
 
 const defaultMessages: Message[] = [
@@ -66,6 +67,8 @@ export default function CTNIAApp() {
   const [chatInput, setChatInput] = useState('');
   const [activeTool, setActiveTool] = useState<'chat' | 'voice' | 'image' | 'photo' | 'document' | 'music'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageResult, setImageResult] = useState<string | null>(null);
@@ -331,31 +334,43 @@ export default function CTNIAApp() {
 
   const toolNames = { chat: 'Nova conversa', voice: 'Conversa por voz', image: 'Criar imagem', photo: 'Analisar foto', document: 'Ler documento', music: 'Estúdio musical' };
 
+  const copyMessage = (text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+  };
+
   return (
-    <main className={`launcher-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
-      <aside className="launcher-sidebar">
-        <div className="launcher-brand-row"><a className="launcher-brand" href="/"><span className="launcher-logo">C</span><span>CTN<span>.IA</span></span></a><button className="sidebar-toggle" aria-label="Recolher menu" onClick={() => setSidebarOpen(false)}><PanelLeftClose /></button></div>
-        {!sidebarOpen && <button className="sidebar-toggle reopen" aria-label="Abrir menu" onClick={() => setSidebarOpen(true)}><PanelLeftOpen /></button>}
-        <button className="new-chat" onClick={() => { setActiveTool('chat'); setMessages(defaultMessages); setChatInput(''); }}><Plus size={18}/> Nova conversa</button>
-        <div className="sidebar-section-label">FERRAMENTAS</div>
-        <nav className="tool-nav">
-          <button className={activeTool === 'chat' ? 'selected' : ''} onClick={() => setActiveTool('chat')}><Sparkles/> <span>Assistente</span></button>
-          <button className={activeTool === 'voice' ? 'selected' : ''} onClick={() => setActiveTool('voice')}><Volume2/> <span>Conversa por voz</span></button>
-          <button className={activeTool === 'image' ? 'selected' : ''} onClick={() => setActiveTool('image')}><ImagePlus/> <span>Criar imagem</span></button>
-          <button className={activeTool === 'photo' ? 'selected' : ''} onClick={() => setActiveTool('photo')}><Camera/> <span>Analisar foto</span></button>
-          <button className={activeTool === 'document' ? 'selected' : ''} onClick={() => setActiveTool('document')}><FileText/> <span>PDF e documentos</span></button>
-          <button className={activeTool === 'music' ? 'selected' : ''} onClick={() => setActiveTool('music')}><Music4/> <span>Estúdio musical</span></button>
-        </nav>
-        <div className="sidebar-history"><div className="sidebar-section-label">RECENTES</div>{messages.filter(m => m.role === 'user').slice(-6).reverse().map((m, i) => <button key={`${m.content}-${i}`} onClick={() => setActiveTool('chat')} title={m.content}><span className="history-dot"/>{m.content}</button>)}</div>
-        <div className="sidebar-bottom"><span className="online-dot"/> Gemini gratuito <a href="/admin/login">Painel</a></div>
-      </aside>
+    <main className={`launcher-shell white-purple ${activeTool === 'chat' ? 'chat-home' : 'tool-open'}`}>
       <section className="launcher-main">
-        <header className="launcher-topbar"><div className="topbar-title">{toolNames[activeTool]} <span className="model-pill">Gemini</span></div><button className="topbar-avatar" title="CTN.IA">C</button></header>
+        <header className="launcher-topbar">
+          <button className="header-back" aria-label="Voltar ao chat" onClick={() => setActiveTool('chat')}><ChevronLeft /></button>
+          <a className="launcher-brand" href="/"><span className="launcher-logo"><Sparkles size={18}/></span><span>CTN<span>.IA</span></span></a>
+          <button className="header-menu" aria-label="Abrir opções" onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal /></button>
+          {menuOpen && <div className="header-popover"><a href="/history">Histórico</a><a href="/music">Estúdio musical</a><a href="/admin/login">Painel</a></div>}
+        </header>
         {activeTool === 'chat' ? (
           <div className={`chat-stage ${messages.length > 1 ? 'has-messages' : ''}`}>
-            {messages.length <= 1 ? <div className="welcome-block"><div className="welcome-spark"><Sparkles size={24}/></div><h1>Olá, Babi. <span>O que vamos criar?</span></h1><p>Converse comigo, envie um documento ou escolha uma ferramenta para começar.</p></div> : <div className="conversation" aria-live="polite">{messages.slice(1).map((message, index) => <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}><div className="message-avatar">{message.role === 'assistant' ? 'C' : 'B'}</div><div className="message-copy">{message.content}</div></div>)}{isBusy && <div className="chat-message assistant"><div className="message-avatar">C</div><div className="typing-dots"><i/><i/><i/></div></div>}</div>}
-            {messages.length <= 1 && <div className="suggestion-grid"><button onClick={() => setChatInput('Me ajude a organizar minhas ideias para hoje')}><span>✦</span><strong>Organize minhas ideias</strong><small>Transforme pensamentos em um plano</small></button><button onClick={() => setChatInput('Explique um assunto difícil de um jeito simples')}><span>⌘</span><strong>Explique algo</strong><small>Aprenda passo a passo, sem complicação</small></button><button onClick={() => { setActiveTool('document'); }}><FileText/><strong>Leia um documento</strong><small>Envie PDF, Word ou texto</small></button><button onClick={() => setActiveTool('music')}><Music4/><strong>Crie uma música</strong><small>Faça uma letra do seu jeito</small></button></div>}
-            <div className="composer-wrap"><div className="composer"><textarea value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Escreva sua mensagem para a CTN.IA..." rows={1} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}/><div className="composer-actions"><div className="composer-tools"><button title="Enviar foto" onClick={() => setActiveTool('photo')}><Camera/></button><button title="Ler documento" onClick={() => setActiveTool('document')}><FileText/></button><button title="Falar" onClick={() => isListening ? stopVoiceInput() : startVoiceInput()} className={isListening ? 'listening' : ''}><Mic/></button></div><button className="send-button" onClick={sendChat} disabled={isBusy || !chatInput.trim()} aria-label="Enviar mensagem"><ArrowUp/></button></div></div><div className="composer-note">A CTN.IA pode cometer erros. Confira informações importantes.</div></div>
+            <div className="conversation" aria-live="polite">
+              <div className="conversation-date">Hoje</div>
+              {messages.map((message, index) => (
+                <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
+                  {message.role === 'assistant' ? <div className="message-avatar"><Sparkles size={16}/></div> : null}
+                  <div className="message-content">
+                    {message.role === 'assistant' && index > 0 && <div className="assistant-label"><strong>CTN.IA</strong><span>Assistente</span></div>}
+                    <div className="message-copy">{index === 0 && message.role === 'assistant' ? 'Oi, Babi! Como posso te ajudar?' : message.content}</div>
+                    {message.role === 'assistant' && index > 0 && <div className="message-actions"><button aria-label="Copiar resposta" title="Copiar" onClick={() => copyMessage(message.content)}><Copy/></button><button aria-label="Ouvir resposta" title="Ouvir" onClick={() => speak(message.content)}><Volume2/></button><button aria-label="Gostei da resposta" title="Gostei"><ThumbsUp/></button></div>}
+                  </div>
+                </div>
+              ))}
+              {isBusy && <div className="chat-message assistant"><div className="message-avatar"><Sparkles size={16}/></div><div className="message-content"><div className="typing-dots"><i/><i/><i/></div></div></div>}
+            </div>
+            <div className="composer-wrap">
+              {toolsOpen && <div className="tools-popover"><button onClick={() => {setActiveTool('photo');setToolsOpen(false);}}><Camera/>Foto</button><button onClick={() => {setActiveTool('document');setToolsOpen(false);}}><FileText/>Arquivo</button><button onClick={() => {setActiveTool('voice');setToolsOpen(false);}}><Mic/>Voz</button><button onClick={() => {setActiveTool('image');setToolsOpen(false);}}><ImagePlus/>Imagem</button><button onClick={() => {setActiveTool('music');setToolsOpen(false);}}><Music4/>Música</button></div>}
+              <div className="composer">
+                <div className="composer-input-line"><textarea value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Escreva uma mensagem..." rows={1} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) {e.preventDefault();sendChat();}}}/></div>
+                <div className="composer-actions"><div className="composer-tools"><button title="Anexar foto, arquivo ou abrir ferramentas" aria-label="Anexar" onClick={() => setToolsOpen(!toolsOpen)}><Plus/></button><button title="Falar" aria-label="Falar" onClick={() => isListening ? stopVoiceInput() : startVoiceInput()} className={isListening ? 'listening' : ''}><Mic/></button></div><button className="send-button" onClick={sendChat} disabled={isBusy || !chatInput.trim()} aria-label="Enviar mensagem"><Send/></button></div>
+              </div>
+              <div className="composer-note">A CTN.IA pode cometer erros. Confira informações importantes.</div>
+            </div>
           </div>
         ) : (
           <div className="tool-stage"><button className="back-chat" onClick={() => setActiveTool('chat')}>← Voltar ao chat</button><div className="tool-heading"><span className="tool-heading-icon">{activeTool === 'voice' ? <Volume2/> : activeTool === 'image' ? <ImagePlus/> : activeTool === 'photo' ? <Camera/> : activeTool === 'document' ? <FileText/> : <Music4/>}</span><h1>{toolNames[activeTool]}</h1><p>{activeTool === 'voice' ? 'Fale sua mensagem; eu transcrevo e respondo em voz alta.' : activeTool === 'image' ? 'Descreva a imagem que você quer criar.' : activeTool === 'photo' ? 'Envie uma foto e pergunte o que deseja saber.' : activeTool === 'document' ? 'Envie um PDF, Word ou texto para eu resumir e analisar.' : 'Descreva o estilo e o tema da música que vamos compor.'}</p></div>
