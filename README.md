@@ -4,7 +4,7 @@ Assistente web Next.js: chat OpenAI, análise de fotos/documentos, sessão anôn
 
 ## Rodar localmente
 
-Requisitos: Node.js 20+ e npm. Configure `.env.local` (copie `.env.example`) com `OPENAI_API_KEY`, `AUTH_SECRET` (segredo aleatório de 32+ caracteres) e `DATABASE_URL` PostgreSQL.
+Requisitos: Node.js 20+ e npm. Configure `.env.local` (copie `.env.example`) com `GEMINI_API_KEY` (Google AI Studio, modelo e cota gratuitos sujeitos a limites), `AUTH_SECRET` (segredo aleatório de 32+ caracteres), `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `DATABASE_URL` PostgreSQL.
 
 ```bash
 npm install
@@ -32,16 +32,16 @@ O código está preparado para build na Vercel, mas a publicação final precisa
 
 1. Crie um PostgreSQL gerenciado e copie a URL SSL.
 2. Importe `nelsontavares8945-beep/ctn-ia` na Vercel como projeto Next.js.
-3. Em **Settings → Environment Variables**, defina `OPENAI_API_KEY`, `MODEL`, `APP_NAME`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `DATABASE_URL` para Production (e Preview/Development se necessário). Nunca use a chave que foi enviada no chat; revogue-a e crie uma nova.
+3. Em **Settings → Environment Variables**, defina `GEMINI_API_KEY`, `MODEL`, `APP_NAME`, `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `DATABASE_URL` para Production (e Preview/Development se necessário). Nunca use a chave que foi enviada no chat; revogue-a e crie uma nova.
 4. Gere `AUTH_SECRET` aleatório, use senha administrativa exclusiva, e não compartilhe segredos.
 5. Antes do primeiro deploy com banco vazio, execute `npx prisma db push` localmente com o `DATABASE_URL` de produção. Para fazer isso sem salvar segredos no repositório, defina a variável somente no terminal/ambiente local. Alternativamente use uma pipeline de deploy segura.
 6. Faça deploy/redeploy na Vercel. Em seguida abra `/admin/login`, `/history` e `/music` no domínio para verificar os recursos.
 
-O deploy não foi realizado automaticamente: requer acesso à sua conta Vercel, banco e segredos privados. A API OpenAI é cobrada conforme uso e configuração de faturamento. Monitore limites e custos.
+O deploy não foi realizado automaticamente: requer acesso à sua conta Vercel, banco e segredos privados. A API Gemini oferece cota gratuita para alguns modelos, sujeita a limites e disponibilidade; mantenha a conta sem faturamento para evitar cobranças. As solicitações do plano gratuito podem ser usadas para melhorar os produtos do Google. A geração de imagens foi desativada nesta versão para evitar o uso de modelos possivelmente pagos.
 
 ## Limites e segurança
 
 - A aplicação não garante respostas sempre certas nem navegação web atualizada.
 - PDFs escaneados precisam de OCR; arquivos aceitos nesta versão: PDF, DOCX e TXT, até 10 MB.
 - Use HTTPS, credenciais fortes e revise as regras de retenção antes de guardar informações sensíveis. Registros anônimos não substituem autenticação de usuário.
-- `OPENAI_API_KEY`, `AUTH_SECRET`, senha e URL do banco são segredos de servidor. Nunca use `NEXT_PUBLIC_` nesses valores nem publique `.env.local`.
+- `GEMINI_API_KEY`, `AUTH_SECRET`, senha e URL do banco são segredos de servidor. Nunca use `NEXT_PUBLIC_` nesses valores nem publique `.env.local`.
