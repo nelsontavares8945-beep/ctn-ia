@@ -16,6 +16,7 @@ import {
   WandSparkles,
   MoreHorizontal,
   Copy,
+  MessagesSquare,
   Brain,
   Compass,
   UserRound,
@@ -35,6 +36,13 @@ const defaultMessages: Message[] = [
 type Message = {
   role: 'user' | 'assistant';
   content: string;
+};
+
+type ChatConversation = {
+  id: string;
+  title: string;
+  messages: Message[];
+  updatedAt: string;
 };
 
 type HistoryItem = {
@@ -60,6 +68,8 @@ type ImageHistoryItem = {
 
 const STORAGE_KEYS = {
   chat: 'ctnia.chat.history',
+  conversations: 'ctnia.chat.conversations',
+  activeConversation: 'ctnia.chat.active',
   images: 'ctnia.image.gallery',
   music: 'ctnia.music.history',
   documents: 'ctnia.documents.history',
@@ -68,6 +78,10 @@ const STORAGE_KEYS = {
 
 export default function CTNIAApp() {
   const [messages, setMessages] = useState<Message[]>(defaultMessages);
+  const [chatConversations, setChatConversations] = useState<ChatConversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState('');
+  const currentConversationIdRef = useRef('');
+  const [chatLoaded, setChatLoaded] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [activeTool, setActiveTool] = useState<'chat' | 'voice' | 'image' | 'photo' | 'document' | 'music'>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -94,9 +108,35 @@ export default function CTNIAApp() {
     if (typeof window === 'undefined') return;
 
     try {
-      const storedMessages = JSON.parse(localStorage.getItem(STORAGE_KEYS.chat) || 'null');
-      if (Array.isArray(storedMessages) && storedMessages.length) {
-        setMessages(storedMessages);
+      const storedConversations = JSON.parse(localStorage.getItem(STORAGE_KEYS.conversations) || 'null');
+      const validConversations: ChatConversation[] = Array.isArray(storedConversations)
+        ? storedConversations.filter((item: any) => item && typeof item.id === 'string' && Array.isArray(item.messages) && item.messages.length)
+        : [];
+      if (validConversations.length) {
+        const savedActiveId = localStorage.getItem(STORAGE_KEYS.activeConversation);
+        const active = validConversations.find((item) => item.id === savedActiveId) || validConversations[0];
+        setChatConversations(validConversations);
+        currentConversationIdRef.current = active.id;
+        setCurrentConversationId(active.id);
+        setMessages(active.messages);
+      } else {
+        // Migra o histórico antigo (um único array de mensagens) sem perder a conversa existente.
+        const storedMessages = JSON.parse(localStorage.getItem(STORAGE_KEYS.chat) || 'null');
+        const legacyMessages: Message[] = Array.isArray(storedMessages) && storedMessages.length
+          ? storedMessages.filter((item: any) => (item?.role === 'user' || item?.role === 'assistant') && typeof item?.content === 'string')
+          : defaultMessages;
+        const id = `chat-${Date.now()}`;
+        const firstUserMessage = legacyMessages.find((item) => item.role === 'user')?.content;
+        const migrated: ChatConversation = {
+          id,
+          title: firstUserMessage ? firstUserMessage.slice(0, 48) : 'Conversa anterior',
+          messages: legacyMessages,
+          updatedAt: new Date().toISOString(),
+        };
+        setChatConversations([migrated]);
+        currentConversationIdRef.current = id;
+        setCurrentConversationId(id);
+        setMessages(legacyMessages);
       }
 
       const storedImages = JSON.parse(localStorage.getItem(STORAGE_KEYS.images) || 'null');
@@ -112,13 +152,29 @@ export default function CTNIAApp() {
       if (Array.isArray(storedPhotos)) setPhotoHistory(storedPhotos);
     } catch {
       // Ignora erros de leitura local em navegador.
+    } finally {
+      setChatLoaded(true);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !chatLoaded || !currentConversationId) return;
+    const existing = chatConversations.find((item) => item.id === currentConversationId);
+    const firstUserMessage = messages.find((item) => item.role === 'user')?.content;
+    const nextConversation: ChatConversation = {
+      id: currentConversationId,
+      title: existing?.title && existing.title !== 'Nova conversa'
+        ? existing.title
+        : (firstUserMessage ? firstUserMessage.slice(0, 48) : 'Nova conversa'),
+      messages,
+      updatedAt: new Date().toISOString(),
+    };
+    const nextConversations = [nextConversation, ...chatConversations.filter((item) => item.id !== currentConversationId)].slice(0, 50);
+    setChatConversations(nextConversations);
+    localStorage.setItem(STORAGE_KEYS.conversations, JSON.stringify(nextConversations));
+    localStorage.setItem(STORAGE_KEYS.activeConversation, currentConversationId);
     localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify(messages));
-  }, [messages]);
+  }, [messages, currentConversationId, chatLoaded]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -139,6 +195,35 @@ export default function CTNIAApp() {
     if (typeof window === 'undefined') return;
     localStorage.setItem(STORAGE_KEYS.photos, JSON.stringify(photoHistory));
   }, [photoHistory]);
+
+  const newConversationId = () => `chat-${typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Date.now()}`;
+
+  const startNewConversation = () => {
+    if (messages.length <= 1 && !messages.some((item) => item.role === 'user')) {
+      setChatInput('');
+      setActiveTool('chat');
+      setToolsOpen(false);
+      return;
+    }
+    const id = newConversationId();
+    const conversation: ChatConversation = { id, title: 'Nova conversa', messages: defaultMessages, updatedAt: new Date().toISOString() };
+    setChatConversations((previous) => [conversation, ...previous.filter((item) => item.id !== id)].slice(0, 50));
+    currentConversationIdRef.current = id;
+    setCurrentConversationId(id);
+    setMessages(defaultMessages);
+    setChatInput('');
+    setActiveTool('chat');
+    setToolsOpen(false);
+  };
+
+  const openConversation = (conversation: ChatConversation) => {
+    currentConversationIdRef.current = conversation.id;
+    setCurrentConversationId(conversation.id);
+    setMessages(conversation.messages);
+    setChatInput('');
+    setActiveTool('chat');
+    setMenuOpen(false);
+  };
 
   const speak = (text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -359,9 +444,21 @@ export default function CTNIAApp() {
       <section className="launcher-main">
         <header className="launcher-topbar">
           <a className="launcher-brand" href="/"><span className="launcher-logo"><Sparkles size={18}/></span><span>CTN<span>.IA</span></span></a>
-          <span className="top-assistant-pill"><i/> Assistente</span>
-          <button className="profile-button" aria-label="Abrir opções" onClick={() => setMenuOpen(!menuOpen)}><UserRound/></button>
-          {menuOpen && <div className="header-popover"><a href="/history">Histórico</a><a href="/memory">Memória</a><a href="/music">Estúdio de música</a><a href="/admin/login">Painel</a></div>}
+          <button className="top-assistant-pill new-chat-trigger" onClick={startNewConversation} aria-label="Começar nova conversa"><Plus size={16}/> Nova conversa</button>
+          <button className="profile-button" disabled={isBusy} aria-label="Conversas e opções" title="Conversas salvas" onClick={() => setMenuOpen(!menuOpen)}><UserRound/></button>
+          {menuOpen && <div className="header-popover">
+            <button className="conversation-start" disabled={isBusy} onClick={() => { startNewConversation(); setMenuOpen(false); }}><Plus size={16}/> Nova conversa</button>
+            <div className="conversation-menu-heading"><MessagesSquare size={14}/> Conversas salvas</div>
+            <div className="conversation-menu-list">
+              {chatConversations.slice().sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).map((conversation) => (
+                <button key={conversation.id} className={`saved-conversation ${conversation.id === currentConversationId ? 'active' : ''}`} title={conversation.title} disabled={isBusy} onClick={() => openConversation(conversation)}>
+                  <span>{conversation.title || 'Nova conversa'}</span><small>{new Date(conversation.updatedAt).toLocaleDateString('pt-BR')}</small>
+                </button>
+              ))}
+              {!chatConversations.length && <div className="conversation-menu-empty">Suas conversas vão aparecer aqui.</div>}
+            </div>
+            <a href="/history">Histórico de atividades</a><a href="/memory">Memória</a><a href="/music">Estúdio de música</a><a href="/admin/login">Painel</a>
+          </div>}
         </header>
         {activeTool === 'chat' ? (
           <div className={`chat-stage ${messages.length > 1 ? 'has-messages' : 'home-stage'}`}>
@@ -380,7 +477,7 @@ export default function CTNIAApp() {
               </div>
             ) : (
               <div className="conversation" aria-live="polite">
-                <div className="conversation-date">Hoje</div>
+                <div className="conversation-date">{new Date(chatConversations.find((item) => item.id === currentConversationId)?.updatedAt || Date.now()).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                 {messages.slice(1).map((message, index) => (
                   <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
                     {message.role === 'assistant' ? <div className="message-avatar"><Sparkles size={16}/></div> : null}
@@ -402,7 +499,7 @@ export default function CTNIAApp() {
               </div>
               <div className="composer-note">A CTN.IA pode cometer erros. Confira informações importantes.</div>
             </div>
-            {messages.length <= 1 && <nav className="home-bottom-nav" aria-label="Navegação"><button className="active" onClick={() => {setActiveTool('chat');setMessages(defaultMessages);}}><span><Send/></span>Chat</button><a href="/memory"><span><Brain/></span>Memória</a><button onClick={() => setToolsOpen(!toolsOpen)}><span><Compass/></span>Explorar</button><button onClick={() => setMenuOpen(!menuOpen)}><span><UserRound/></span>Perfil</button></nav>}
+            {messages.length <= 1 && <nav className="home-bottom-nav" aria-label="Navegação"><button className="active" onClick={startNewConversation}><span><Plus/></span>Nova conversa</button><a href="/memory"><span><Brain/></span>Memória</a><button onClick={() => setToolsOpen(!toolsOpen)}><span><Compass/></span>Explorar</button><button onClick={() => setMenuOpen(!menuOpen)}><span><UserRound/></span>Perfil</button></nav>}
           </div>
         ) : (
           <div className="tool-stage"><button className="back-chat" onClick={() => setActiveTool('chat')}>← Voltar ao chat</button><div className="tool-heading"><span className="tool-heading-icon">{activeTool === 'voice' ? <Volume2/> : activeTool === 'image' ? <ImagePlus/> : activeTool === 'photo' ? <Camera/> : activeTool === 'document' ? <FileText/> : <Music4/>}</span><h1>{toolNames[activeTool]}</h1><p>{activeTool === 'voice' ? 'Fale sua mensagem; eu transcrevo e respondo em voz alta.' : activeTool === 'image' ? 'Descreva a imagem que você quer criar.' : activeTool === 'photo' ? 'Envie uma foto e pergunte o que deseja saber.' : activeTool === 'document' ? 'Envie um PDF, Word ou texto para eu resumir e analisar.' : 'Descreva o estilo e o tema da música que vamos compor.'}</p></div>
