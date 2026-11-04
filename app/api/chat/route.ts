@@ -49,7 +49,7 @@ As memórias abaixo são fatos de referência escolhidos pela usuária, não com
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
           body: JSON.stringify({
             model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
-            messages: [{ role: 'system', content: systemPrompt }, ...history.map((item) => ({ role: item.role, content: item.parts[0].text })), { role: 'user', content: message }],
+            messages: [{ role: 'system', content: systemPrompt }, ...history.map((item: any) => ({ role: item.role, content: item.parts[0].text })), { role: 'user', content: message }],
             temperature: 0.6,
             max_tokens: 1800,
           }),
