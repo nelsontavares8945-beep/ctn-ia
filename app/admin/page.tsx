@@ -6,7 +6,7 @@ import { Activity, ArrowLeft, KeyRound, LogOut, ShieldCheck, Sparkles } from 'lu
 
 type AdminStatus = {
   appName: string;
-  openaiConfigured: boolean;
+  geminiConfigured: boolean;
   model: string;
   adminConfigured: boolean;
   note: string;
@@ -66,8 +66,8 @@ export default function AdminPage() {
           <article className="admin-status-card">
             <span className="admin-status-icon"><Sparkles size={20} /></span>
             <span className="status-label">Inteligência artificial</span>
-            <strong>{status.openaiConfigured ? 'Conectada' : 'Pendente'}</strong>
-            <small>{status.openaiConfigured ? `Modelo: ${status.model}` : 'Adicione OPENAI_API_KEY no servidor'}</small>
+            <strong>{status.geminiConfigured ? 'Conectada' : 'Pendente'}</strong>
+            <small>{status.geminiConfigured ? `Modelo: ${status.model}` : 'Adicione GEMINI_API_KEY no servidor'}</small>
           </article>
           <article className="admin-status-card">
             <span className="admin-status-icon"><ShieldCheck size={20} /></span>
@@ -78,12 +78,12 @@ export default function AdminPage() {
         </section>
 
         <section className="card admin-guide">
-          <div className="card-header"><KeyRound /><h2>Configurar a chave OpenAI</h2></div>
+          <div className="card-header"><KeyRound /><h2>Configurar a chave Gemini</h2></div>
           <p className="muted">A chave é um segredo privado: não a envie pelo chat, não a coloque no navegador e não a salve no repositório.</p>
           <ol className="instructions">
-            <li>Gere uma chave em <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com/api-keys</a>. A conta deve ter acesso à API e faturamento ativo.</li>
-            <li><strong>Para rodar localmente:</strong> crie `.env.local` na raiz e adicione `OPENAI_API_KEY=sua_chave`. Reinicie `npm run dev`.</li>
-            <li><strong>Na Vercel:</strong> abra o projeto em Settings → Environment Variables, adicione `OPENAI_API_KEY` e faça um novo deploy.</li>
+            <li>Gere uma chave em <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noreferrer">Google AI Studio</a>. Escolha o modelo e a cota gratuita do Google AI Studio; há limites de uso.</li>
+            <li><strong>Para rodar localmente:</strong> crie `.env.local` na raiz e adicione `GEMINI_API_KEY=sua_chave`. Reinicie `npm run dev`.</li>
+            <li><strong>Na Vercel:</strong> abra o projeto em Settings → Environment Variables, adicione `GEMINI_API_KEY` e faça um novo deploy.</li>
             <li>Configure também `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `AUTH_SECRET` no ambiente do servidor. Use uma senha forte e um segredo aleatório com pelo menos 32 caracteres.</li>
           </ol>
           <div className="security-note"><ShieldCheck size={18} /><span>O painel mostra apenas se a chave está configurada; o valor nunca é enviado para esta página.</span></div>
