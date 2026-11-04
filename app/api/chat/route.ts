@@ -4,6 +4,7 @@ import { askGemini, responseText } from '@/lib/gemini';
 import { getGuestSession } from '@/lib/activity';
 import { prisma } from '@/lib/prisma';
 
+// Provider fallback order: Groq, Gemini, then Cloudflare Workers AI.
 const appName = process.env.APP_NAME || 'CTN.IA';
 
 export async function POST(request: NextRequest) {
