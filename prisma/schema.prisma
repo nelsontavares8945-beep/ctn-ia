@@ -18,3 +18,13 @@ model Activity {
   @@index([sessionId, createdAt])
   @@index([sessionId, category, createdAt])
 }
+
+
+model LearnedFact {
+  id        String   @id @default(cuid())
+  sessionId String
+  content   String   @db.VarChar(1200)
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}

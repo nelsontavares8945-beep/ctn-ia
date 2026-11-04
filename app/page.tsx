@@ -179,6 +179,18 @@ export default function CTNIAApp() {
     const userMessage = chatInput.trim();
     setChatInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    if (/^lembre-se:\s*/i.test(userMessage)) {
+      const fact = userMessage.replace(/^lembre-se:\s*/i, '').trim();
+      if (!fact) { setMessages((prev) => [...prev, { role: 'assistant', content: 'Escreva depois de “Lembre-se:” o que você quer que eu guarde.' }]); return; }
+      setIsBusy(true);
+      try {
+        const saved = await fetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: fact }) });
+        const result = await saved.json();
+        setMessages((prev) => [...prev, { role: 'assistant', content: saved.ok ? 'Anotei isso na memória desta sessão. Você pode revisar ou apagar em Memória.' : (result.error || 'Não consegui salvar essa memória.') }]);
+      } catch { setMessages((prev) => [...prev, { role: 'assistant', content: 'Não consegui salvar essa memória agora.' }]); }
+      finally { setIsBusy(false); }
+      return;
+    }
     setIsBusy(true);
 
     try {
@@ -348,7 +360,7 @@ export default function CTNIAApp() {
           <button className="header-back" aria-label="Voltar ao chat" onClick={() => setActiveTool('chat')}><ChevronLeft /></button>
           <a className="launcher-brand" href="/"><span className="launcher-logo"><Sparkles size={18}/></span><span>CTN<span>.IA</span></span></a>
           <button className="header-menu" aria-label="Abrir opções" onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal /></button>
-          {menuOpen && <div className="header-popover"><a href="/history">Histórico</a><a href="/music">Estúdio musical</a><a href="/admin/login">Painel</a></div>}
+          {menuOpen && <div className="header-popover"><a href="/history">Histórico</a><a href="/memory">Memória</a><a href="/music">Estúdio musical</a><a href="/admin/login">Painel</a></div>}
         </header>
         {activeTool === 'chat' ? (
           <div className={`chat-stage ${messages.length > 1 ? 'has-messages' : ''}`}>
