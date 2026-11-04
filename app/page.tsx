@@ -14,7 +14,7 @@ import {
   Volume2,
 } from 'lucide-react';
 
-const defaultMessages = [
+const defaultMessages: Message[] = [
   {
     role: 'assistant',
     content:
